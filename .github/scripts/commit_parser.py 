@@ -1,6 +1,7 @@
 import re
 
 def parse(message):
+    print(message)
     """解析结构化提交消息"""
     pattern = r"\[(.*?)\]\[(.*?)\]\s*(.*?)\s*\|\s*知识节点ID:\s*(\S+)"
     match = re.match(pattern, message)
