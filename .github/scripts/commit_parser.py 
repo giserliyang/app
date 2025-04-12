@@ -8,6 +8,13 @@ def parse(message):
     
     if not match:
         raise ValueError("Invalid commit message format")
+
+    
+    try:
+        result = parse(message)
+    except ValueError as e:
+        print(f"::error ::{str(e)}")
+        exit(1)
     
     return {
         "chapter_id": match.group(1),

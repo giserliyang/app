@@ -17,3 +17,13 @@ jobs:
           echo "result=$OUTPUT" >> $GITHUB_OUTPUT
         env:
           COMMIT_MSG: ${{ github.event.head_commit.message }}
+          
+      - name: Error Handling
+        if: ${{ failure() }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              body: `⚠️ 提交消息解析失败: ${process.env.COMMIT_MSG}`
+            })
