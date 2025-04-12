@@ -1,0 +1,21 @@
+import re
+
+def parse(message):
+    """解析结构化提交消息"""
+    pattern = r"\[(.*?)\]\[(.*?)\]\s*(.*?)\s*\|\s*知识节点ID:\s*(\S+)"
+    match = re.match(pattern, message)
+    
+    if not match:
+        raise ValueError("Invalid commit message format")
+    
+    return {
+        "chapter_id": match.group(1),
+        "module": match.group(2),
+        "description": match.group(3),
+        "node_id": match.group(4)
+    }
+
+if __name__ == "__main__":
+    # 测试用例
+    test_msg = "[ch03][数据库设计] 实现事务管理 | 知识节点ID: ch3-5a2d"
+    print(parse(test_msg))
