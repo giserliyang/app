@@ -66,7 +66,18 @@ jobs:
           }
           const chapter = match[1];
           const step = match[2];
+          
+          // 在async函数开始处添加
+          if (!commitMsg.includes("@notion")) {
+            console.log("非Notion相关提交，跳过");
+            return;
+          }
 
+          // 在查询数据库前添加类型检查
+          if (isNaN(parseInt(step))) {
+            console.log("步骤号必须是数字");
+            return;
+          }
           async function updateNotion() {
             try {
               // 添加空值检查
