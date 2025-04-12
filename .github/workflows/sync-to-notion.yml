@@ -39,39 +39,58 @@ jobs:
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          COMMIT_MSG: ${{ steps.extract-commit.outputs.commit_msg }}
+          COMMIT_SHA: ${{ steps.extract-commit.outputs.commit_sha }}
+          COMMIT_URL: ${{ steps.extract-commit.outputs.commit_url }}
         run: |
           # 安装Notion官方客户端库
           npm install @notionhq/client
-
-          # 编写Node.js脚本
-          cat << EOF > update-notion.js
+          
+          # 使用单引号EOF防止变量提前展开
+          cat << 'EOF' > update-notion.js
           const { Client } = require('@notionhq/client');
 
           const notion = new Client({ auth: process.env.NOTION_TOKEN });
           const databaseId = process.env.DATABASE_ID;
 
           // 从环境变量获取提交信息
-          const commitMsg = "${{ steps.extract-commit.outputs.commit_msg }}";
-          const commitSha = "${{ steps.extract-commit.outputs.commit_sha }}";
-          const commitUrl = "${{ steps.extract-commit.outputs.commit_url }}";
+          const commitMsg = process.env.COMMIT_MSG;
+          const commitSha = process.env.COMMIT_SHA;
+          const commitUrl = process.env.COMMIT_URL;
 
-          // 解析章节和步骤编号（示例：Chapter 3 - Step 5）
-          const match = commitMsg.match(/Chapter (\d+) - Step (\d+)/);
+          // 增强正则表达式兼容性
+          const match = commitMsg.match(/Chapter\s*(\d+)\s*-\s*Step\s*(\d+)/i);
           if (!match) {
             console.log('未找到章节和步骤信息，跳过更新');
             process.exit(0);
           }
-          const [_, chapter, step] = match;
+          const chapter = match[1];
+          const step = match[2];
 
           async function updateNotion() {
             try {
-              // 查询Notion Database中是否存在对应条目
+              // 添加空值检查
+              if (!chapter || !step) {
+                console.log('章节或步骤号解析失败');
+                return;
+              }
+
               const response = await notion.databases.query({
                 database_id: databaseId,
                 filter: {
                   and: [
-                    { property: "Chapter", title: { equals: `Chapter ${chapter}` } },
-                    { property: "Step", number: { equals: parseInt(step) } }
+                    { 
+                      property: "Chapter", 
+                      title: { 
+                        equals: `Chapter ${chapter}` 
+                      } 
+                    },
+                    { 
+                      property: "Step", 
+                      number: { 
+                        equals: parseInt(step) 
+                      } 
+                    }
                   ]
                 }
               });
