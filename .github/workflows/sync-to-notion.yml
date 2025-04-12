@@ -43,6 +43,11 @@ jobs:
           COMMIT_SHA: ${{ steps.extract-commit.outputs.commit_sha }}
           COMMIT_URL: ${{ steps.extract-commit.outputs.commit_url }}
         run: |
+          # 在脚本执行前打印原始Commit Message
+          echo "=== 原始Commit Message ==="
+          echo "$COMMIT_MSG"
+          echo "=========================="
+
           # 安装Notion官方客户端库
           npm install @notionhq/client
           
@@ -136,6 +141,8 @@ jobs:
           }
 
           updateNotion();
+          console.log(`正在解析Commit内容：${commitMsg}`);
+          console.log(`提取结果：Chapter ${chapter}, Step ${step}`);
           EOF
 
           # 执行脚本
