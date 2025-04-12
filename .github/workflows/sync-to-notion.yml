@@ -1,0 +1,19 @@
+jobs:
+  sync:
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r .github/scripts/requirements.txt
+
+      - name: Parse commit message
+        id: parse-commit
+        run: |
+          OUTPUT=$(python .github/scripts/commit_parser.py "$COMMIT_MSG")
+          echo "result=$OUTPUT" >> $GITHUB_OUTPUT
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
