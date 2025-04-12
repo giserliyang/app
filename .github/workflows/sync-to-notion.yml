@@ -1,19 +1,112 @@
+name: Sync GitHub Commit to Notion
+
+on:
+  push:
+    branches: [ "main" ]  # 监听main分支的推送
+
 jobs:
-  sync:
+  update-notion:
+    runs-on: ubuntu-latest
     steps:
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          python-version: '3.10'
+          node-version: '20'
 
-      - name: Install dependencies
+      - name: Extract Commit Data
+        id: extract-commit
         run: |
-          pip install -r .github/scripts/requirements.txt
+          # 提取最后一次提交的信息
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          COMMIT_SHA=$(git rev-parse HEAD)
+          COMMIT_URL="https://github.com/$GITHUB_REPOSITORY/commit/$COMMIT_SHA"
+          
+          # 检查Commit Message中是否包含触发标记
+          if [[ "$COMMIT_MSG" == *"@notion"* ]]; then
+            echo "trigger_sync=true" >> $GITHUB_OUTPUT
+            echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
+            echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+            echo "commit_url=$COMMIT_URL" >> $GITHUB_OUTPUT
+          else
+            echo "trigger_sync=false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Parse commit message
-        id: parse-commit
-        run: |
-          OUTPUT=$(python .github/scripts/commit_parser.py "$COMMIT_MSG")
-          echo "result=$OUTPUT" >> $GITHUB_OUTPUT
+      - name: Update Notion Database
+        if: steps.extract-commit.outputs.trigger_sync == 'true'
         env:
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: |
+          # 安装Notion官方客户端库
+          npm install @notionhq/client
+
+          # 编写Node.js脚本
+          cat << EOF > update-notion.js
+          const { Client } = require('@notionhq/client');
+
+          const notion = new Client({ auth: process.env.NOTION_TOKEN });
+          const databaseId = process.env.DATABASE_ID;
+
+          // 从环境变量获取提交信息
+          const commitMsg = "${{ steps.extract-commit.outputs.commit_msg }}";
+          const commitSha = "${{ steps.extract-commit.outputs.commit_sha }}";
+          const commitUrl = "${{ steps.extract-commit.outputs.commit_url }}";
+
+          // 解析章节和步骤编号（示例：Chapter 3 - Step 5）
+          const match = commitMsg.match(/Chapter (\d+) - Step (\d+)/);
+          if (!match) {
+            console.log('未找到章节和步骤信息，跳过更新');
+            process.exit(0);
+          }
+          const [_, chapter, step] = match;
+
+          async function updateNotion() {
+            try {
+              // 查询Notion Database中是否存在对应条目
+              const response = await notion.databases.query({
+                database_id: databaseId,
+                filter: {
+                  and: [
+                    { property: "Chapter", title: { equals: `Chapter ${chapter}` } },
+                    { property: "Step", number: { equals: parseInt(step) } }
+                  ]
+                }
+              });
+
+              // 更新或新建条目
+              if (response.results.length > 0) {
+                const pageId = response.results[0].id;
+                await notion.pages.update({
+                  page_id: pageId,
+                  properties: {
+                    "Commit ID": { rich_text: [{ text: { content: commitSha } }] },
+                    "GitHub Link": { url: commitUrl }
+                  }
+                });
+                console.log(\`更新Notion页面: Chapter ${chapter} - Step ${step}\`);
+              } else {
+                await notion.pages.create({
+                  parent: { database_id: databaseId },
+                  properties: {
+                    "Chapter": { title: [{ text: { content: \`Chapter ${chapter}\` } }] },
+                    "Step": { number: parseInt(step) },
+                    "Commit ID": { rich_text: [{ text: { content: commitSha } }] },
+                    "GitHub Link": { url: commitUrl }
+                  }
+                });
+                console.log(\`新建Notion页面: Chapter ${chapter} - Step ${step}\`);
+              }
+            } catch (error) {
+              console.error('更新Notion失败:', error);
+              process.exit(1);
+            }
+          }
+
+          updateNotion();
+          EOF
+
+          # 执行脚本
+          node update-notion.js
