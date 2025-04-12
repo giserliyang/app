@@ -59,7 +59,7 @@ jobs:
           const commitUrl = process.env.COMMIT_URL;
 
           // 增强正则表达式兼容性
-          const match = commitMsg.match(/Chapter\s*(\d+)\s*-\s*Step\s*(\d+)/i);
+          const match = commitMsg.match(/Chapters*(d+)s*-s*Steps*(d+)/i);
           if (!match) {
             console.log('未找到章节和步骤信息，跳过更新');
             process.exit(0);
@@ -105,18 +105,18 @@ jobs:
                     "GitHub Link": { url: commitUrl }
                   }
                 });
-                console.log(\`更新Notion页面: Chapter ${chapter} - Step ${step}\`);
+                console.log(`更新Notion页面: Chapter ${chapter} - Step ${step}`);
               } else {
                 await notion.pages.create({
                   parent: { database_id: databaseId },
                   properties: {
-                    "Chapter": { title: [{ text: { content: \`Chapter ${chapter}\` } }] },
+                    "Chapter": { title: [{ text: { content: `Chapter ${chapter}` } }] },
                     "Step": { number: parseInt(step) },
                     "Commit ID": { rich_text: [{ text: { content: commitSha } }] },
                     "GitHub Link": { url: commitUrl }
                   }
                 });
-                console.log(\`新建Notion页面: Chapter ${chapter} - Step ${step}\`);
+                console.log(`新建Notion页面: Chapter ${chapter} - Step ${step}`);
               }
             } catch (error) {
               console.error('更新Notion失败:', error);
