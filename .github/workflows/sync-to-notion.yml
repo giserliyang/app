@@ -58,15 +58,15 @@ jobs:
           const commitSha = process.env.COMMIT_SHA;
           const commitUrl = process.env.COMMIT_URL;
 
-          // 增强正则表达式兼容性
-          const match = commitMsg.match(/Chapters*(d+)s*-s*Steps*(d+)/i);
+          // 更新后的正则表达式（兼容大小写、不同分隔符、多余空格）
+          const match = commitMsg.match(/(chapter|ch|c)\s*[:：]?\s*(\d+)\s*[-~_]?\s*(step|st|s)\s*[:：]?\s*(\d+)/i);
           if (!match) {
-            console.log('未找到章节和步骤信息，跳过更新');
+            console.log(`无法解析章节/步骤信息，原始Commit内容：${commitMsg}`);
             process.exit(0);
           }
-          const chapter = match[1];
-          const step = match[2];
-          
+          const chapter = match[2]; // 第二个捕获组是章节号
+          const step = match[4];    // 第四个捕获组是步骤号
+
           // 在async函数开始处添加
           if (!commitMsg.includes("@notion")) {
             console.log("非Notion相关提交，跳过");
